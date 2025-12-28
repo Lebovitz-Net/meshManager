@@ -1,101 +1,43 @@
 // File: src/components/Tabs/ContactsTab.jsx
 
-import { useState, useCallback } from 'react';
-import { Box, Typography, CircularProgress, Button } from '@mui/material';
-import { useChannels } from '@/hooks/useChannels.js';
-import ContactsCard from '@/components/Tabs/ContactsCard.jsx';
-import ContactsDisplay from '@/components/Tabs/ContactsDisplay.jsx';
-import useSSE from '@/hooks/useSSE.js';
+import { useMemo } from 'react';
+import { Box, Typography, CircularProgress } from '@mui/material';
+import ContactsCard from './ContactsCard.jsx';
+import useContacts from '@/hooks/useContacts.js';
+import { useContactsSSE } from '@/hooks/useSse.js';
 
-// Helper to upsert channel into array
-function upsertChannel(channels, incoming) {
-  const index = channels.findIndex(c => c.channel_num === incoming.channel_num);
-  if (index === -1) return [...channels, incoming];
-  const updated = [...channels];
-  updated[index] = { ...updated[index], ...incoming };
-  return updated;
-}
+export default function ContactsTab() {
+  // unified hook: fetches contacts, supports refetch with sinceDate
+  const { contacts, loading, error, refetch } = useContacts({ sinceDate: 0 });
 
-export default function ContactsTab({ nodeNum }) {
-  const { channels: initialChannels, loading, error } = useChannels(nodeNum);
-  const [selectedChannel, setSelectedChannel] = useState(null);
-  const [liveChannels, setLiveChannels] = useState([]);
+  // compute lastSeenTimestamp from current contacts
+  const lastSeenTimestamp = useMemo(() => {
+    if (!contacts || contacts.length === 0) return 0;
+    return Math.max(...contacts.map(c => c.recvTimestamp ?? 0));
+  }, [contacts]);
 
-  // 🔄 Listen for live channel updates via SSE
-  const handleChannels = useCallback((data) => {
-    setLiveChannels(prev => upsertChannel(prev, data.channel));
-  }, []);
-  useSSE('channel', handleChannels);
-
-  if (!nodeNum) {
-    return (
-      <Typography variant="body1" sx={{ p: 2 }}>
-        No node selected.
-      </Typography>
-    );
-  }
-
-  // 🧱 Merge initial and live channels
-  const mergedChannels = [...initialChannels, ...liveChannels].reduce((acc, channel) => {
-    const existing = acc.find(c => c.channel_num === channel.channel_num);
-    if (!existing) return [...acc, channel];
-    return acc.map(c => c.channel_num === channel.channel_num ? { ...c, ...channel } : c);
-  }, []);
+  // SSE subscription: signal only
+  useContactsSSE(() => {
+    console.log('[ContactsTab] SSE signal: contact update');
+    refetch({ sinceDate: lastSeenTimestamp });
+  });
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {!selectedChannel ? (
-        <Box sx={{ padding: 2, overflowY: 'auto', flexGrow: 1 }}>
-          <Typography variant="h5" gutterBottom>
-            Mesh Channels for Node {nodeNum}
-          </Typography>
+    <Box sx={{ p: 2, overflowY: 'auto', height: '100%' }}>
+      <Typography variant="h5" gutterBottom>
+        Contacts
+      </Typography>
 
-          {loading && <CircularProgress />}
-          {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
-              Error loading channels: {error.message}
-            </Typography>
-          )}
-
-          {!loading &&
-            !error &&
-            mergedChannels.map(channel => (
-              <ContactsCard
-                key={channel.channel_num}
-                channel={channel}
-                isSelected={selectedChannel?.channel_num === channel.channel_num}
-                onSelectChannel={setSelectedChannel}
-              />
-            ))}
-        </Box>
-      ) : (
-        <>
-          <Box sx={{ padding: 2 }}>
-            <Button variant="outlined" onClick={() => setSelectedChannel(null)}>
-              ← Back to Channels
-            </Button>
-          </Box>
-
-          <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-            <ContactsDisplay
-              channel={selectedChannel}
-              contact={{
-                nodeNum,                // local node
-                toNodeNum: 4294967295,  // broadcast or peer
-                // enriched fields if available
-                shortName: selectedChannel.shortName,
-                longName: selectedChannel.longName,
-                userId: selectedChannel.userId,
-                macaddr: selectedChannel.macaddr,
-                hwModel: selectedChannel.hwModel,
-                publicKey: selectedChannel.publicKey,
-                isUnmessagable: selectedChannel.isUnmessagable,
-                updatedAt: selectedChannel.updatedAt
-              }}
-            />
-          </Box>
-        </>
+      {loading && <CircularProgress />}
+      {error && (
+        <Typography color="error" sx={{ mt: 2 }}>
+          Error loading contacts: {error.message}
+        </Typography>
       )}
+
+      {!loading && !error && contacts.map(contact => (
+        <ContactsCard key={contact.contactId} contact={contact} />
+      ))}
     </Box>
   );
 }

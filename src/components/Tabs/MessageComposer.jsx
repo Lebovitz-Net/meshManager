@@ -3,12 +3,18 @@
 import { Box, TextField, Button } from '@mui/material';
 import { useState } from 'react';
 
-export default function MessageComposer({ onSend }) {
+export default function MessageComposer({ onSend, sender }) {
   const [text, setText] = useState('');
 
   const handleSend = () => {
     if (!text.trim()) return;
-    onSend(text.trim());
+
+    // Pass both the raw text and sender
+    onSend({
+      message: text.trim(),
+      sender
+    });
+
     setText('');
   };
 

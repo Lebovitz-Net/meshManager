@@ -1,7 +1,7 @@
 // File: src/hooks/useChannels.js
 import { useEffect, useState } from 'react';
 
-export function useChannels(nodeNum) {
+export default function useChannels(nodeNum) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

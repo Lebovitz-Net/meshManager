@@ -8,9 +8,8 @@ import {
   FormControlLabel
 } from '@mui/material';
 import { useState, useCallback } from 'react';
-import MessageList from './MessageList';
 import MessageThreadedList from './MessageThreadedList';
-import { useMessagesForChannel } from '@/hooks/useMessagesForChannel';
+import useMessages from '@/hooks/useMessages.js';   // ✅ unified hook
 import { useSendMessage } from '@/hooks/useSendMessage';
 import MessageComposer from './MessageComposer';
 import useSSE from '@/hooks/useSSE.js';
@@ -23,23 +22,22 @@ function mergeMessages(base, incoming) {
 }
 
 export default function ContactsDisplay({ channel, contact }) {
-  const { messages: initialMessages, loading, error } = useMessagesForChannel(
-    channel?.channel_num ?? channel?.id,
-
-    contact?.nodeNum
-  );
+  const { messages: allFetchedMessages, loading, error } = useMessages();
 
   const [threadedView, setThreadedView] = useState(true);
   const [liveMessages, setLiveMessages] = useState([]);
 
   // 🔄 Listen for live message updates via SSE
-  const handleMessages = useCallback((data) => {
-    console.log('SSE message event', data.message.channelId, channel?.channel_num);
-    if (data.message.channelId === channel?.channel_num) {
-      console.log('New message for current channel');
-      setLiveMessages(prev => mergeMessages(prev, [data.message]));
-    }
-  }, [channel?.channel_num]);
+  const handleMessages = useCallback(
+    (data) => {
+      console.log('SSE message event', data.message.channelId, channel?.channel_num);
+      if (data.message.channelId === channel?.channel_num) {
+        console.log('New message for current channel');
+        setLiveMessages((prev) => mergeMessages(prev, [data.message]));
+      }
+    },
+    [channel?.channel_num]
+  );
   useSSE('message', handleMessages);
 
   function handleSendMessage(text) {
@@ -62,8 +60,18 @@ export default function ContactsDisplay({ channel, contact }) {
     contact?.user ||
     contact?.nodeNum;
 
+  // 🧱 Filter fetched messages by channel/contact
+  const filteredMessages = allFetchedMessages.filter((m) => {
+    const matchesChannel =
+      m.channelId === channel?.channel_num || m.channelId === channel?.id;
+    const matchesContact = contact?.nodeNum
+      ? m.contactNodeNum === contact.nodeNum
+      : true;
+    return matchesChannel && matchesContact;
+  });
+
   // 🧱 Merge initial and live messages directly
-  const allMessages = mergeMessages(initialMessages, liveMessages);
+  const allMessages = mergeMessages(filteredMessages, liveMessages);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -78,7 +86,7 @@ export default function ContactsDisplay({ channel, contact }) {
           control={
             <Switch
               checked={threadedView}
-              onChange={() => setThreadedView(prev => !prev)}
+              onChange={() => setThreadedView((prev) => !prev)}
               color="primary"
             />
           }

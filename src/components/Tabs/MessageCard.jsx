@@ -17,9 +17,9 @@ export default function MessageCard({ message, isSelected, onSelect }) {
 
   // Build display name with fallback
   const displayName =
-    message.shortName || message.longName
-      ? `${message.shortName || ''} ${message.longName || ''}`.trim()
-      : `Meshtastic Node ${message.fromNodeNum}`;
+    message.sender || message.contactId
+      ? `${message.sender || message.contactId}`
+      : `Node ${message.fromNodeNum}`;
 
   return (
     <Card
@@ -45,9 +45,9 @@ export default function MessageCard({ message, isSelected, onSelect }) {
             <Typography variant="subtitle1" fontWeight="bold">
               {displayName}
             </Typography>
-            {message.userId && (
+            {message.contactId && (
               <Typography variant="caption" color="text.secondary">
-                User ID: {message.userId}
+                Contact ID: {message.contactId}
               </Typography>
             )}
           </Stack>
@@ -59,15 +59,19 @@ export default function MessageCard({ message, isSelected, onSelect }) {
 
           {/* Message preview */}
           <Typography variant="body1" noWrap>
-            {message.message || message.payload}
+            {message.message}
           </Typography>
 
-          {/* Timestamp */}
+          {/* Timestamps */}
           <Typography variant="caption" color="text.secondary">
-            {message.timestamp
-              ? new Date(message.timestamp).toLocaleString()
-              : ''}
+            {`Send: ${new Date(message.sentTimestamp).toLocaleString()}`}
           </Typography>
+
+          {/* Add spacing between sent and received */}
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+            {`Received: ${new Date(message.recvTimestamp).toLocaleString()}`}
+          </Typography>
+
         </div>
 
         <IconButton

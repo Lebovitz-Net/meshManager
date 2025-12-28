@@ -1,5 +1,3 @@
-// File: src/components/Tabs/MessageList.jsx
-
 import MessageCard from './MessageCard.jsx';
 
 export default function MessageList({ messages }) {
@@ -8,20 +6,35 @@ export default function MessageList({ messages }) {
   }
 
   return (
-    <>
+    <div
+      style={{
+        overflowY: 'auto',
+        height: '100%',
+        paddingRight: '0.5rem',
+      }}
+    >
       {messages.map(m => (
         <MessageCard
-          key={m.messageId}
+          key={m.id || m.messageId}
           message={{
-            id: m.messageId,
+            id: m.id,
+            contactId: m.contactId,
+            channelId: m.channelId,
+            sender: m.sender,
             fromNodeNum: m.fromNodeNum,
             toNodeNum: m.toNodeNum,
-            text: m.message,            // ✅ map API "message" → prop "text"
-            timestamp: m.timestamp,
-            payload: m.message          // optional, fallback
+            toNodeType: m.toNodeType,
+            messageId: m.messageId,
+            message: m.message,
+            mentions: m.mentions,
+            options: m.options,
+            sentTimestamp: m.sentTimestamp,
+            recvTimestamp: m.recvTimestamp,
+            protocol: m.protocol,
+            connId: m.connId
           }}
         />
       ))}
-    </>
+    </div>
   );
 }
